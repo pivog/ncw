@@ -17,7 +17,7 @@ def send(msg):
     more = False
     msg_encoded = msg.encode(FORMAT)
     if len(msg_encoded) > 1000:
-        msg_encoded = msg_encoded[:1000]
+        msg_encoded = msg_encoded[1000:]
         more = True
     msg_len = len(msg_encoded)
     msg_len_encoded = str(msg_len).encode(FORMAT)
