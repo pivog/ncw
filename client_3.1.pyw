@@ -4,7 +4,7 @@ import os
 import subprocess
 import cython
 
-HEADER = 400
+HEADER = 64
 PORT_SHELL = 887
 PORT_FILE = 888
 SERVER = "127.0.0.1"
